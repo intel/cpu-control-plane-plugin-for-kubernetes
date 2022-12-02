@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ctlplane
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ctlplane-rbac
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: ctlplane
+roleRef:
+  kind: ClusterRole
+  name: cluster-admin
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: ctlplane-daemonset
+  namespace: ctlplane
+spec:
+  selector:
+    matchLabels:
+      app: ctlplane-daemonset
+  template:
+    metadata:
+      labels:
+        app: ctlplane-daemonset
+    spec:
+      serviceAccountName: default
+      initContainers:
+        - name: delete-old-state
+          image: busybox:1.28
+          command: ['rm', '-f', '/daemonstate/daemon.state']
+          volumeMounts:
+          - name: state
+            mountPath: /daemonstate
+          securityContext:
+            privileged: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
+          resources:
+            limits:
+              cpu: 2
+              memory: "128M"
+            requests:
+              cpu: 1
+              memory: "64M"    
+      containers:
+        - name: ctlplane-daemonset
+          image: IMAGE
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 31000
+          securityContext:
+            privileged: true
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
+          args: ["-cpath", "/cgroup", "-spath", "/daemonstate/daemon.state", "-runtime", "containerd", "-allocator", "numa-namespace-exclusive=2"]
+          volumeMounts:
+          - name: host
+            mountPath: /cgroup
+          - name: state
+            mountPath: /daemonstate
+          resources:
+            limits:
+              cpu: 4
+              memory: "512M"
+            requests:
+              cpu: 2
+              memory: "64M"
+          readinessProbe:
+            grpc:
+              port: 31000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            grpc:
+              port: 31000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+        - name: ctlplane-agent
+          image: IMAGE
+          imagePullPolicy: Always
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - all
+          args: ["-a", "-namespace-prefix", "test-"]
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          resources:
+            limits:
+              cpu: 4
+              memory: "512M"
+            requests:
+              cpu: 2
+              memory: "64M"
+      volumes:
+        - name: host
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: state
+          hostPath:
+            path: /usr/local/daemonstate/
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: ctlplane-daemonset
+  namespace: ctlplane
+spec:
+  selector:
+    app: ctlplane-daemonset
+  ports:
+    - name: service
+      port: 31000
+      targetPort: 31000

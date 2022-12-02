@@ -1,0 +1,1 @@
+{"AvailableCPUs":[{"StartCPU":0,"EndCPU":127}],"Allocated":null,"Pods":null,"Topology":{"Topology":null,"CpuInformation":null},"CGroupPath":"","StatePath":"testdata/daemon_cpuset.state"}

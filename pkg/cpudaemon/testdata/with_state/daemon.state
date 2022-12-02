@@ -1,0 +1,1 @@
+{"AvailableCPUs":[{"StartCPU":0,"EndCPU":55},{"StartCPU":76,"EndCPU":78},{"StartCPU":99,"EndCPU":99}],"Allocated":{},"Pods":{},"CGroupPath":"testdata/with_state/","StatePath":"testdata/with_state/daemon.state"}
