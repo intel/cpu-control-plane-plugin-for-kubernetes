@@ -11,7 +11,7 @@ coverage:
 	go tool cover -html=coverage.out -o coverage.html
 	
 image:
-	docker build -t ctlplane:${DOCKER_IMAGE_VERSION} -f docker/Dockerfile .
+	docker build --build-arg http_proxy="${http_proxy}" --build-arg https_proxy="${https_proxy}" --build-arg no_proxy="${no_proxy}" -t ctlplane:${DOCKER_IMAGE_VERSION} -f docker/Dockerfile .
 
 build:
 	CGO_ENABLED=0 go build -o bin/ctlplane cmd/ctlplane-agent.go cmd/ctlplane.go
