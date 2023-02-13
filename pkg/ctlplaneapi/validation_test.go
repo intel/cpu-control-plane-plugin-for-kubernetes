@@ -11,8 +11,8 @@ func properResourceInfo() *ResourceInfo {
 	return &ResourceInfo{
 		RequestedCpus:   1,
 		LimitCpus:       1,
-		RequestedMemory: 1,
-		LimitMemory:     1,
+		RequestedMemory: newQuantityAsBytes(1),
+		LimitMemory:     newQuantityAsBytes(1),
 	}
 }
 
@@ -24,8 +24,8 @@ func properContainers() []*ContainerInfo {
 			Resources: &ResourceInfo{
 				RequestedCpus:   1,
 				LimitCpus:       1,
-				RequestedMemory: 1,
-				LimitMemory:     1,
+				RequestedMemory: newQuantityAsBytes(1),
+				LimitMemory:     newQuantityAsBytes(1),
 			},
 		},
 	}
@@ -43,7 +43,7 @@ func TestValidateResourceInfo(t *testing.T) {
 			expectedErr: nil,
 		},
 		{
-			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = 2 },
+			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = newQuantityAsBytes(2) },
 			expectedErr: nil,
 		},
 		{
@@ -55,15 +55,15 @@ func TestValidateResourceInfo(t *testing.T) {
 			expectedErr: ErrLessThanZero,
 		},
 		{
-			modifier:    func(ri *ResourceInfo) { ri.RequestedMemory = -1 },
+			modifier:    func(ri *ResourceInfo) { ri.RequestedMemory = newQuantityAsBytes(-1) },
 			expectedErr: ErrLessThanZero,
 		},
 		{
-			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = -1 },
+			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = newQuantityAsBytes(-1) },
 			expectedErr: ErrLessThanZero,
 		},
 		{
-			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = 0 },
+			modifier:    func(ri *ResourceInfo) { ri.LimitMemory = newQuantityAsBytes(0) },
 			expectedErr: ErrLimitSmallerThanRequest,
 		},
 		{

@@ -106,6 +106,25 @@ func TestErrorNoCPUsAvailableOnTake(t *testing.T) {
 	}, err)
 }
 
+func TestErrorWrongRuntimeConfiguration(t *testing.T) {
+	daemonStateFile, tearDown := setupTest()
+	defer tearDown(t)
+	st, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	assert.Nil(t, err)
+	d := NewDefaultAllocator(NewCgroupController(Docker, DriverSystemd, logr.Discard()))
+	assert.NotNil(t, d)
+	c := Container{
+		PID:  "test_pod_id1",
+		CID:  "containerd://test_container_iud1",
+		Cpus: 10,
+		QS:   Guaranteed,
+	}
+	err = d.takeCpus(c, st)
+	assert.Equal(t, DaemonError{
+		ErrorType:    ConfigurationError,
+		ErrorMessage: "Control Plane configured runtime does not match pod runtime",
+	}, err)
+}
 func TestTakeAndDeleteContainer(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)

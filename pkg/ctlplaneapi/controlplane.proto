@@ -47,8 +47,8 @@ enum Placement {
 message ResourceInfo{
     int32 requestedCpus = 1;
     int32 limitCpus = 2;
-    int32 requestedMemory = 3;
-    int32 limitMemory = 4;
+    bytes requestedMemory = 3;
+    bytes limitMemory = 4;
     Placement cpuAffinity = 5;
 }
 

@@ -149,6 +149,32 @@ func TestNumaNamespaceTakeCpu(t *testing.T) {
 	assertCpuState(t, s, &containerNs2, "1")
 }
 
+func TestNumaNamespaceOversubscribedTakeCpu(t *testing.T) {
+	dir, err := os.MkdirTemp("", "test_cpu")
+	require.Nil(t, err)
+	defer os.RemoveAll(dir)
+
+	s := getTestDaemonState(dir, 4)
+
+	allocator := newMockedNumaPerNamespaceAllocator(2, false)
+	containerNs1 := baseContainer(1)
+	containerNs2 := baseContainer(2)
+	containerNs3 := baseContainer(3)
+
+	mock := allocator.ctrl.(*CgroupsMock)
+	mock.On("UpdateCPUSet", s.CGroupPath, containerNs1, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, containerNs2, "2", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, containerNs3, "1", "0").Return(nil)
+
+	assert.Nil(t, allocator.takeCpus(containerNs1, s))
+	assert.Nil(t, allocator.takeCpus(containerNs2, s))
+	assert.Nil(t, allocator.takeCpus(containerNs3, s))
+
+	assertCpuState(t, s, &containerNs1, "0")
+	assertCpuState(t, s, &containerNs2, "2")
+	assertCpuState(t, s, &containerNs3, "1")
+}
+
 func TestNumaNamespaceExclusiveTakeCpu(t *testing.T) {
 	dir, err := os.MkdirTemp("", "test_cpu")
 	require.Nil(t, err)

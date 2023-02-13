@@ -176,20 +176,30 @@ func (d *DefaultAllocator) clearCpus(c Container, s *DaemonState) error {
 
 // UpdateCPUSet updates the cpu set of a given child process.
 func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, c Container, cSet string, memSet string) error {
-	slice := SliceName(c, cgc.containerRuntime, cgc.cgroupDriver)
+	runtimeURLPrefix := [2]string{"docker://", "containerd://"}
+	if cgc.containerRuntime == Kind || cgc.containerRuntime != Kind &&
+		strings.Contains(c.CID, runtimeURLPrefix[cgc.containerRuntime]) {
+		slice := SliceName(c, cgc.containerRuntime, cgc.cgroupDriver)
+		cgc.logger.V(2).Info("allocating cgroup", "cgroupPath", pPath, "slicePath", slice, "cpuSet", cSet, "memSet", memSet)
 
+		if cgroups.Mode() == cgroups.Unified {
+			return cgc.updateCgroupsV2(pPath, slice, cSet, memSet)
+		}
+		return cgc.updateCgroupsV1(pPath, slice, cSet, memSet)
+	}
+
+	return DaemonError{
+		ErrorType:    ConfigurationError,
+		ErrorMessage: "Control Plane configured runtime does not match pod runtime",
+	}
+}
+
+func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, slice, cSet, memSet string) error {
 	outputPath := path.Join(pPath, "cpuset", slice)
 	if err := utils.ValidatePathInsideBase(outputPath, pPath); err != nil {
 		return err
 	}
 
-	cgc.logger.V(2).Info("allocating cgroup", "cgroupPath", pPath, "slicePath", slice, "cpuSet", cSet, "memSet", memSet)
-	if cgroups.Mode() == cgroups.Unified {
-		// memory migration in cgroups v2 is always enabled
-		res := cgroupsv2.Resources{CPU: &cgroupsv2.CPU{Cpus: cSet, Mems: memSet}}
-		_, err := cgroupsv2.NewManager(pPath, slice, &res)
-		return err
-	}
 	ctrl := cgroups.NewCpuset(pPath)
 	err := ctrl.Update(slice, &specs.LinuxResources{
 		CPU: &specs.LinuxCPU{
@@ -202,5 +212,17 @@ func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, c Container, cSet str
 		migratePath := path.Join(pPath, "cpuset", slice, "cpuset.memory_migrate")
 		err = os.WriteFile(migratePath, []byte("1"), os.FileMode(0))
 	}
+	return err
+}
+
+func (cgc CgroupControllerImpl) updateCgroupsV2(pPath, slice, cSet, memSet string) error {
+	outputPath := path.Join(pPath, slice)
+	if err := utils.ValidatePathInsideBase(outputPath, pPath); err != nil {
+		return err
+	}
+
+	res := cgroupsv2.Resources{CPU: &cgroupsv2.CPU{Cpus: cSet, Mems: memSet}}
+	_, err := cgroupsv2.NewManager(pPath, slice, &res)
+	// memory migration in cgroups v2 is always enabled, no need to set it as in cgroupsv1
 	return err
 }

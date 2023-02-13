@@ -28,6 +28,7 @@ type NumaPerNamespaceAllocator struct {
 	NumBuckets            int
 	NamespaceToBucket     map[string]int
 	BucketToNumContainers map[int]int
+	globalBucket          int
 }
 
 var _ Allocator = &NumaPerNamespaceAllocator{}
@@ -48,6 +49,7 @@ func NewNumaPerNamespaceAllocator(
 		BucketToNumContainers: make(map[int]int),
 		exclusive:             exclusive,
 		memoryPinning:         memoryPinning,
+		globalBucket:          0,
 	}
 }
 
@@ -249,25 +251,8 @@ func (d *NumaPerNamespaceAllocator) clearCpus(c Container, s *DaemonState) error
 }
 
 func (d *NumaPerNamespaceAllocator) newNamespace(namespace string) error {
-	if len(d.NamespaceToBucket) == d.NumBuckets {
-		return DaemonError{
-			ErrorType: CpusNotAvailable,
-			ErrorMessage: fmt.Sprintf(
-				"all %d namespace buckets are already allocated. cannot allocate new",
-				d.NumBuckets,
-			),
-		}
-	}
-	usedBuckets := map[int]bool{}
-	for _, bucket := range d.NamespaceToBucket {
-		usedBuckets[bucket] = true
-	}
-	for i := 0; i < d.NumBuckets; i++ {
-		if !usedBuckets[i] {
-			d.NamespaceToBucket[namespace] = i
-			break
-		}
-	}
+	d.NamespaceToBucket[namespace] = d.globalBucket % d.NumBuckets
+	d.globalBucket++
 	d.logger.Info("created namespace bucket", "name", namespace)
 	return nil
 }

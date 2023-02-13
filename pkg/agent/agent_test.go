@@ -3,14 +3,15 @@ package agent
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
-	"time"
 
 	"resourcemanagement.controlplane/pkg/ctlplaneapi"
 )
@@ -51,7 +52,7 @@ var testCtx = logr.NewContext(context.TODO(), logr.Discard())
 
 func TestCreatePodPasses(t *testing.T) {
 	cpMock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	podRequest, err := GetCreatePodRequest(&pod)
 	require.Nil(t, err)
 	cpMock.On("CreatePod", mock.Anything, podRequest).Return(&ctlplaneapi.PodAllocationReply{}, nil)
@@ -64,7 +65,7 @@ func TestCreatePodPasses(t *testing.T) {
 
 func TestUpdateIgnoresDeletingPods(t *testing.T) {
 	mock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	pod.DeletionTimestamp = &metav1.Time{Time: time.Unix(0, 0)}
 	agent := NewAgent(testCtx, &mock, "")
 
@@ -75,7 +76,7 @@ func TestUpdateIgnoresDeletingPods(t *testing.T) {
 
 func TestUpdateIgnoresNamespaceWithWrongPrefix(t *testing.T) {
 	mock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	agent := NewAgent(testCtx, &mock, "test")
 
 	agent.update(struct{}{}, &pod)
@@ -85,7 +86,7 @@ func TestUpdateIgnoresNamespaceWithWrongPrefix(t *testing.T) {
 
 func TestUpdateIgnoresInitializingPods(t *testing.T) {
 	mock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	pod.Status.ContainerStatuses[0].Ready = false
 	agent := NewAgent(testCtx, &mock, "")
 
@@ -96,7 +97,7 @@ func TestUpdateIgnoresInitializingPods(t *testing.T) {
 
 func TestUpdatePodPasses(t *testing.T) {
 	cpMock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	podCreateRequest, err := GetCreatePodRequest(&pod)
 	require.Nil(t, err)
 	podUpdateRequest, err := GetUpdatePodRequest(&pod)
@@ -113,7 +114,7 @@ func TestUpdatePodPasses(t *testing.T) {
 
 func TestUpdatePodPassesWithError(t *testing.T) {
 	cpMock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	podCreateRequest, err := GetCreatePodRequest(&pod)
 	require.Nil(t, err)
 	podUpdateRequest, err := GetUpdatePodRequest(&pod)
@@ -130,7 +131,7 @@ func TestUpdatePodPassesWithError(t *testing.T) {
 
 func TestDeletePodPasses(t *testing.T) {
 	cpMock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	podCreateRequest, err := GetCreatePodRequest(&pod)
 	require.Nil(t, err)
 	podDeleteRequest := GetDeletePodRequest(&pod)
@@ -146,7 +147,7 @@ func TestDeletePodPasses(t *testing.T) {
 
 func TestDeletePodIfNotAddedPreviously(t *testing.T) {
 	cpMock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	podDeleteRequest := GetDeletePodRequest(&pod)
 	agent := NewAgent(testCtx, &cpMock, "")
 	err := errors.New("unsuccessful deletion") //nolint
@@ -158,7 +159,7 @@ func TestDeletePodIfNotAddedPreviously(t *testing.T) {
 
 func TestDeleteIgnoresNamespaceWithWrongPrefix(t *testing.T) {
 	mock := ControlPlaneClientMock{}
-	pod := genTestPod()
+	pod := genTestPods()
 	agent := NewAgent(testCtx, &mock, "test")
 
 	agent.delete(&pod)

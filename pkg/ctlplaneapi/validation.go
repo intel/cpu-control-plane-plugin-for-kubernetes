@@ -3,6 +3,8 @@ package ctlplaneapi
 import (
 	"errors"
 	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 var (
@@ -16,11 +18,22 @@ var (
 //   - request and limit cpu/memory cannot be less than zero
 //   - requested cpu/memory cannot be larger than their limit
 func ValidateResourceInfo(info *ResourceInfo) error {
+	rm := resource.Quantity{}
+	lm := resource.Quantity{}
+	zero := resource.Quantity{}
+	err := rm.Unmarshal(info.RequestedMemory)
+	if err != nil {
+		return err
+	}
+	err = lm.Unmarshal(info.LimitMemory)
+	if err != nil {
+		return err
+	}
 	if err := returnErrorIfLessThanZero([]lessThanZeroValidatorEntry{
 		{info.RequestedCpus, "request CPU"},
 		{info.LimitCpus, "limit CPU"},
-		{info.RequestedMemory, "request memory"},
-		{info.LimitMemory, "limit memory"},
+		{int32(rm.Cmp(zero)), "request memory"},
+		{int32(lm.Cmp(zero)), "limit memory"},
 	}); err != nil {
 		return err
 	}
@@ -29,7 +42,7 @@ func ValidateResourceInfo(info *ResourceInfo) error {
 		return fmt.Errorf("CPU: %w. %d vs %d", ErrLimitSmallerThanRequest, info.LimitCpus, info.RequestedCpus)
 	}
 
-	if info.LimitMemory < info.RequestedMemory {
+	if lm.Cmp(rm) < 0 {
 		return fmt.Errorf("memory: %w", ErrLimitSmallerThanRequest)
 	}
 

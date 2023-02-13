@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type DaemonMock struct {
@@ -131,14 +132,20 @@ func validateAllocatedPodReply(t *testing.T, eReply *PodAllocationReply, reply *
 	}
 }
 
+func newQuantityAsBytes(v int64) []byte {
+	rm := resource.NewQuantity(v, resource.DecimalSI)
+	r, _ := rm.Marshal()
+	return r
+}
+
 func modifyContainers(c []*ContainerInfo) []*ContainerInfo {
 	res := []*ContainerInfo{}
 	for i := 0; i < len(c); i++ {
 		modResource := ResourceInfo{
 			RequestedCpus:   1,
 			LimitCpus:       2,
-			RequestedMemory: 3,
-			LimitMemory:     4,
+			RequestedMemory: newQuantityAsBytes(3),
+			LimitMemory:     newQuantityAsBytes(4),
 			CpuAffinity:     Placement_DEFAULT,
 		}
 		res = append(res,
@@ -159,8 +166,8 @@ func createContainers(n int, a []Placement) []*ContainerInfo {
 		cRInfo := ResourceInfo{
 			RequestedCpus:   2,
 			LimitCpus:       4,
-			RequestedMemory: 8,
-			LimitMemory:     16,
+			RequestedMemory: newQuantityAsBytes(8),
+			LimitMemory:     newQuantityAsBytes(16),
 			CpuAffinity:     a[i%len(a)],
 		}
 		containers = append(containers,
@@ -178,8 +185,8 @@ func updateTestPodRequest(t *testing.T, m *DaemonMock, cReq *CreatePodRequest, c
 	modifiedRInfo := ResourceInfo{
 		RequestedCpus:   2,
 		LimitCpus:       1,
-		RequestedMemory: 5,
-		LimitMemory:     32,
+		RequestedMemory: newQuantityAsBytes(5),
+		LimitMemory:     newQuantityAsBytes(32),
 		CpuAffinity:     Placement_DEFAULT,
 	}
 	request := UpdatePodRequest{
@@ -206,8 +213,8 @@ func createTestPodRequest(t *testing.T, pName, pNamespace string, m *DaemonMock,
 	rInfo := ResourceInfo{
 		RequestedCpus:   2,
 		LimitCpus:       4,
-		RequestedMemory: 8,
-		LimitMemory:     16,
+		RequestedMemory: newQuantityAsBytes(8),
+		LimitMemory:     newQuantityAsBytes(16),
 		CpuAffinity:     a,
 	}
 

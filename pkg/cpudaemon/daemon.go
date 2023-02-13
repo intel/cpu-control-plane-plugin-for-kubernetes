@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/go-logr/logr"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"resourcemanagement.controlplane/pkg/ctlplaneapi"
 )
 
@@ -31,6 +32,7 @@ const (
 	MissingCgroup
 	UnknownTopology
 	RuntimeError
+	ConfigurationError
 	NotImplemented
 )
 
@@ -160,7 +162,7 @@ func New(cPath, numaPath, statePath string, p Policy, logger logr.Logger) (*Daem
 
 func (d *Daemon) rollbackContainers(podID string, containers []*ctlplaneapi.ContainerInfo) {
 	for _, container := range containers {
-		c := containerFromRequest(container, podID)
+		c := containerFromRequest(d.logger, container, podID)
 		d.logger.Info("rolling back container", "cid", container.ContainerId)
 		err := d.policy.ClearContainer(c, &d.state)
 		d.logger.Error(err, "failed to roll back container", "cid", container.ContainerId)
@@ -190,7 +192,7 @@ func (d *Daemon) CreatePod(req *ctlplaneapi.CreatePodRequest) (*ctlplaneapi.Allo
 	containersCpus := []ctlplaneapi.AllocatedContainerResource{}
 
 	for i, it := range req.Containers {
-		c := containerFromRequest(it, req.PodId)
+		c := containerFromRequest(d.logger, it, req.PodId)
 		err := d.policy.AssignContainer(c, &d.state)
 
 		if err != nil {
@@ -286,19 +288,19 @@ func (d *Daemon) UpdatePod(req *ctlplaneapi.UpdatePodRequest) (*ctlplaneapi.Allo
 	deletedErr := d.deleteContainers(deleted)
 
 	// pods present in current set, and present in request, but with different parameters
-	updated := getChangedContainers(pC, req.Containers)
+	updated := getChangedContainers(d.logger, pC, req.Containers)
 	d.logger.V(2).Info("updated containers", "containers", updated)
 	cpus, updatedContainers, updatedErr := d.updateContainers(updated)
 	containersCpus = append(containersCpus, cpus...)
 
 	// pods not present in current set, present in request
-	added := getAddedContainers(pC, req.Containers, req.PodId)
+	added := getAddedContainers(d.logger, pC, req.Containers, req.PodId)
 	d.logger.V(2).Info("added containers", "containers", added)
 	cpus, addedContainers, addedErr := d.addContainers(added)
 	containersCpus = append(containersCpus, cpus...)
 
 	pod.Containers = make([]Container, 0, len(req.Containers))
-	pod.Containers = append(pod.Containers, getNotModifiedContainers(pC, req.Containers)...)
+	pod.Containers = append(pod.Containers, getNotModifiedContainers(d.logger, pC, req.Containers)...)
 	pod.Containers = append(pod.Containers, updatedContainers...)
 	pod.Containers = append(pod.Containers, addedContainers...)
 	d.state.Pods[req.PodId] = pod
@@ -411,12 +413,12 @@ func getDeletedContainers(current []Container, wanted []*ctlplaneapi.ContainerIn
 	return deleted
 }
 
-func getChangedContainers(current []Container, wanted []*ctlplaneapi.ContainerInfo) []containerUpdated {
+func getChangedContainers(logger logr.Logger, current []Container, wanted []*ctlplaneapi.ContainerInfo) []containerUpdated {
 	changed := make([]containerUpdated, 0, len(wanted))
 	for _, cc := range wanted {
 		for _, oc := range current {
 			if oc.CID == cc.ContainerId {
-				if ccr := containerFromRequest(cc, oc.PID); oc != ccr {
+				if ccr := containerFromRequest(logger, cc, oc.PID); oc != ccr {
 					changed = append(changed, containerUpdated{
 						current: oc,
 						wanted:  ccr,
@@ -428,12 +430,12 @@ func getChangedContainers(current []Container, wanted []*ctlplaneapi.ContainerIn
 	return changed
 }
 
-func getNotModifiedContainers(current []Container, wanted []*ctlplaneapi.ContainerInfo) []Container {
+func getNotModifiedContainers(logger logr.Logger, current []Container, wanted []*ctlplaneapi.ContainerInfo) []Container {
 	notChanged := make([]Container, 0, len(wanted))
 	for _, cc := range wanted {
 		for _, oc := range current {
 			if oc.CID == cc.ContainerId {
-				if ccr := containerFromRequest(cc, oc.PID); oc == ccr {
+				if ccr := containerFromRequest(logger, cc, oc.PID); oc == ccr {
 					notChanged = append(notChanged, oc)
 				}
 			}
@@ -442,7 +444,7 @@ func getNotModifiedContainers(current []Container, wanted []*ctlplaneapi.Contain
 	return notChanged
 }
 
-func getAddedContainers(current []Container, wanted []*ctlplaneapi.ContainerInfo, podID string) []Container {
+func getAddedContainers(logger logr.Logger, current []Container, wanted []*ctlplaneapi.ContainerInfo, podID string) []Container {
 	added := make([]Container, 0, len(wanted))
 	for _, cc := range wanted {
 		exist := false
@@ -453,21 +455,30 @@ func getAddedContainers(current []Container, wanted []*ctlplaneapi.ContainerInfo
 			}
 		}
 		if !exist {
-			added = append(added, containerFromRequest(cc, podID))
+			added = append(added, containerFromRequest(logger, cc, podID))
 		}
 	}
 	return added
 }
 
-func containerFromRequest(req *ctlplaneapi.ContainerInfo, podID string) Container {
+func containerFromRequest(logger logr.Logger, req *ctlplaneapi.ContainerInfo, podID string) Container {
 	qs := BestEffort
-
+	rm := resource.Quantity{}
+	lm := resource.Quantity{}
+	err := rm.Unmarshal(req.Resources.RequestedMemory)
+	if err != nil {
+		logger.Error(err, "failed to unmarshal memory request for container", "cid", req.ContainerId)
+	}
+	err = lm.Unmarshal(req.Resources.LimitMemory)
+	if err != nil {
+		logger.Error(err, "failed to unmarshal memory limit for container", "cid", req.ContainerId)
+	}
 	if req.Resources.RequestedCpus == req.Resources.LimitCpus &&
-		req.Resources.RequestedMemory == req.Resources.LimitMemory &&
+		rm.Equal(lm) &&
 		req.Resources.RequestedCpus > 0 {
 		qs = Guaranteed
 	} else if req.Resources.RequestedCpus < req.Resources.LimitCpus ||
-		req.Resources.RequestedMemory < req.Resources.LimitMemory {
+		rm.Cmp(lm) < 0 {
 		qs = Burstable
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	"resourcemanagement.controlplane/pkg/ctlplaneapi"
 
 	"github.com/go-logr/logr"
@@ -22,6 +23,12 @@ type PodMetaData struct {
 	deletedContainers   []Container
 	containersResources []*ctlplaneapi.ContainerInfo
 	expectations        ctlplaneapi.AllocatedPodResources
+}
+
+func newQuantityAsBytes(v int64) []byte {
+	rm := resource.NewQuantity(v, resource.DecimalSI)
+	r, _ := rm.Marshal()
+	return r
 }
 
 type MockedPolicy struct {
@@ -53,8 +60,8 @@ func createTestPod(n int) PodMetaData {
 	r := ctlplaneapi.ResourceInfo{
 		RequestedCpus:   2,
 		LimitCpus:       2,
-		RequestedMemory: 8,
-		LimitMemory:     8,
+		RequestedMemory: newQuantityAsBytes(8),
+		LimitMemory:     newQuantityAsBytes(8),
 		CpuAffinity:     ctlplaneapi.Placement_COMPACT,
 	}
 	pid := "testPid"
@@ -72,8 +79,8 @@ func createTestPod(n int) PodMetaData {
 		cr := ctlplaneapi.ResourceInfo{
 			RequestedCpus:   int32(i + 1),
 			LimitCpus:       int32(i + 1),
-			RequestedMemory: 8,
-			LimitMemory:     8,
+			RequestedMemory: newQuantityAsBytes(8),
+			LimitMemory:     newQuantityAsBytes(8),
 			CpuAffinity:     ctlplaneapi.Placement_COMPACT,
 		}
 		p.containers = append(p.containers,
@@ -112,8 +119,8 @@ func modifyTestPod(p PodMetaData, d int, u int) PodMetaData {
 	r := ctlplaneapi.ResourceInfo{
 		RequestedCpus:   4,
 		LimitCpus:       4,
-		RequestedMemory: 16,
-		LimitMemory:     16,
+		RequestedMemory: newQuantityAsBytes(16),
+		LimitMemory:     newQuantityAsBytes(16),
 		CpuAffinity:     ctlplaneapi.Placement_COMPACT,
 	}
 	mp.pid = p.pid
@@ -131,8 +138,8 @@ func modifyTestPod(p PodMetaData, d int, u int) PodMetaData {
 		cr := ctlplaneapi.ResourceInfo{
 			RequestedCpus:   int32(cpus),
 			LimitCpus:       int32(cpus),
-			RequestedMemory: 8,
-			LimitMemory:     8,
+			RequestedMemory: newQuantityAsBytes(8),
+			LimitMemory:     newQuantityAsBytes(8),
 			CpuAffinity:     ctlplaneapi.Placement_COMPACT,
 		}
 		mp.containers = append(mp.containers,

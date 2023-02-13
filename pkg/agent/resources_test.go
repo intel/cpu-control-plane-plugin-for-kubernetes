@@ -22,7 +22,7 @@ type resourceSpec struct {
 	limMem string
 }
 
-func genPodFromSpec(containersResources []resourceSpec) corev1.Pod {
+func genPodsFromSpec(containersResources []resourceSpec) corev1.Pod {
 	containers := make([]corev1.Container, 0, len(containersResources))
 	statuses := make([]corev1.ContainerStatus, 0, len(containersResources))
 	for i, container := range containersResources {
@@ -69,8 +69,8 @@ func genPodFromSpec(containersResources []resourceSpec) corev1.Pod {
 	return pod
 }
 
-func genTestPod() corev1.Pod {
-	return genPodFromSpec(
+func genTestPods() corev1.Pod {
+	return genPodsFromSpec(
 		[]resourceSpec{
 			{
 				reqCpu: "2000",
@@ -84,32 +84,54 @@ func genTestPod() corev1.Pod {
 				limCpu: "4000",
 				limMem: "48Mi",
 			},
+			{
+				reqCpu: "3000",
+				reqMem: "128G",
+				limCpu: "4000",
+				limMem: "256Gi",
+			},
 		},
 	)
 }
-
+func bytesToQuantity(b []byte) resource.Quantity {
+	res := resource.Quantity{}
+	_ = res.Unmarshal(b)
+	return res
+}
+func totalMemory(args ...string) *resource.Quantity {
+	tmem := resource.Quantity{}
+	for _, a := range args {
+		lmem, _ := resource.ParseQuantity(a)
+		tmem.Add(lmem)
+	}
+	return &tmem
+}
 func assertResourcesEqualWithTestPod(t *testing.T, ri *ctlplaneapi.ResourceInfo) {
-	assert.Equal(t, int32(5000), ri.RequestedCpus)
-	assert.Equal(t, int32(7000), ri.LimitCpus)
-	assert.Equal(t, int32(56*1024*1024), ri.RequestedMemory)
-	assert.Equal(t, int32(112*1024*1024), ri.LimitMemory)
+	assert.Equal(t, int32(8000), ri.RequestedCpus)
+	assert.Equal(t, int32(11000), ri.LimitCpus)
+	assert.Equal(t, totalMemory("56Mi", "128G").Cmp(bytesToQuantity(ri.RequestedMemory)), 0)
+	assert.Equal(t, totalMemory("112Mi", "256Gi").Cmp(bytesToQuantity(ri.LimitMemory)), 0)
 }
 
 func assertContainersEqualWithTestPod(t *testing.T, ci []*ctlplaneapi.ContainerInfo) {
-	assert.Equal(t, 2, len(ci))
+	assert.Equal(t, 3, len(ci))
 	assert.Equal(t, "id test container 1", ci[0].ContainerId)
 	assert.Equal(t, int32(2000), ci[0].Resources.RequestedCpus)
 	assert.Equal(t, int32(3000), ci[0].Resources.LimitCpus)
-	assert.Equal(t, int32(32*1024*1024), ci[0].Resources.RequestedMemory)
-	assert.Equal(t, int32(64*1024*1024), ci[0].Resources.LimitMemory)
+	assert.Equal(t, totalMemory("32Mi").Cmp(bytesToQuantity(ci[0].Resources.RequestedMemory)), 0)
+	assert.Equal(t, totalMemory("64Mi").Cmp(bytesToQuantity(ci[0].Resources.LimitMemory)), 0)
 	assert.Equal(t, int32(3000), ci[1].Resources.RequestedCpus)
 	assert.Equal(t, int32(4000), ci[1].Resources.LimitCpus)
-	assert.Equal(t, int32(24*1024*1024), ci[1].Resources.RequestedMemory)
-	assert.Equal(t, int32(48*1024*1024), ci[1].Resources.LimitMemory)
+	assert.Equal(t, totalMemory("24Mi").Cmp(bytesToQuantity(ci[1].Resources.RequestedMemory)), 0)
+	assert.Equal(t, totalMemory("48Mi").Cmp(bytesToQuantity(ci[1].Resources.LimitMemory)), 0)
+	assert.Equal(t, int32(3000), ci[2].Resources.RequestedCpus)
+	assert.Equal(t, int32(4000), ci[2].Resources.LimitCpus)
+	assert.Equal(t, totalMemory("128G").Cmp(bytesToQuantity(ci[2].Resources.RequestedMemory)), 0)
+	assert.Equal(t, totalMemory("256Gi").Cmp(bytesToQuantity(ci[2].Resources.LimitMemory)), 0)
 }
 
 func TestGetCreatePodRequest(t *testing.T) {
-	pod := genTestPod()
+	pod := genTestPods()
 	pR, err := GetCreatePodRequest(&pod)
 	require.Nil(t, err)
 	assert.Equal(t, "123", pR.PodId)
@@ -118,7 +140,7 @@ func TestGetCreatePodRequest(t *testing.T) {
 }
 
 func TestGetUpdatePodRequest(t *testing.T) {
-	pod := genTestPod()
+	pod := genTestPods()
 	pR, err := GetUpdatePodRequest(&pod)
 	require.Nil(t, err)
 	assert.Equal(t, "123", pR.PodId)
@@ -127,7 +149,7 @@ func TestGetUpdatePodRequest(t *testing.T) {
 }
 
 func TestGetDeletePodRequest(t *testing.T) {
-	pod := genTestPod()
+	pod := genTestPods()
 	pR := GetDeletePodRequest(&pod)
 	assert.Equal(t, string(pod.GetUID()), pR.PodId)
 }
@@ -135,7 +157,8 @@ func TestGetDeletePodRequest(t *testing.T) {
 func TestResourceCountingOverflow(t *testing.T) {
 	limits := [][]int{{1, 1, 1, 1}, {math.MaxInt32, 1, 1, 1}}
 
-	for i := 0; i < 4; i++ { // for each shift of limit indicies
+	// jump over memory as it can Mi, Gi ...
+	for i := 0; i < 4; i += 2 { // for each shift of limit indicies
 		specs := []resourceSpec{}
 		for _, spec := range limits {
 			specs = append(specs, resourceSpec{
@@ -146,7 +169,7 @@ func TestResourceCountingOverflow(t *testing.T) {
 			})
 		}
 		t.Run(fmt.Sprintf("Shift %d", i), func(t *testing.T) {
-			pod := genPodFromSpec(specs)
+			pod := genPodsFromSpec(specs)
 			_, err := GetCreatePodRequest(&pod)
 			assert.ErrorIs(t, err, ErrCountingOverflow)
 		})

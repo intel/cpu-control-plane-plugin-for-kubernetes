@@ -11,14 +11,17 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"resourcemanagement.controlplane/pkg/ctlplaneapi"
 )
 
-func updatePodRequestFromCreate(base *ctlplaneapi.CreatePodRequest, numDeletes, numUpdates uint) *ctlplaneapi.UpdatePodRequest {
+func updatePodRequestFromCreate(t *testing.T, base *ctlplaneapi.CreatePodRequest, numDeletes, numUpdates uint) *ctlplaneapi.UpdatePodRequest {
 	req := ctlplaneapi.UpdatePodRequest{
 		PodId:     base.PodId,
 		Resources: &ctlplaneapi.ResourceInfo{},
 	}
+	trm := resource.Quantity{}
+	tlm := resource.Quantity{}
 	for i, container := range base.Containers {
 		c := ctlplaneapi.ContainerInfo{
 			ContainerId:   container.ContainerId,
@@ -30,6 +33,16 @@ func updatePodRequestFromCreate(base *ctlplaneapi.CreatePodRequest, numDeletes, 
 				LimitMemory:     container.Resources.LimitMemory,
 			},
 		}
+		crm := resource.Quantity{}
+		clm := resource.Quantity{}
+		err := crm.Unmarshal(c.Resources.RequestedMemory)
+		if err != nil {
+			t.Fatal("Error Unmarshaling container memory request")
+		}
+		err = clm.Unmarshal(c.Resources.LimitMemory)
+		if err != nil {
+			t.Fatal("Error Unmarshaling container memory limit")
+		}
 		iu := uint(i)
 		if iu < numDeletes {
 			continue
@@ -40,10 +53,12 @@ func updatePodRequestFromCreate(base *ctlplaneapi.CreatePodRequest, numDeletes, 
 		}
 		req.Containers = append(req.Containers, &c)
 		req.Resources.LimitCpus += c.Resources.LimitCpus
-		req.Resources.LimitMemory += c.Resources.LimitMemory
+		trm.Add(crm)
 		req.Resources.RequestedCpus += c.Resources.RequestedCpus
-		req.Resources.RequestedMemory += c.Resources.RequestedMemory
+		tlm.Add(clm)
 	}
+	req.Resources.RequestedMemory, _ = trm.Marshal()
+	req.Resources.LimitMemory, _ = tlm.Marshal()
 	return &req
 }
 
@@ -60,8 +75,8 @@ func createPodRequestForFuzzing(
 		Resources: &ctlplaneapi.ResourceInfo{
 			RequestedCpus:   reqCpu * numContainers32,
 			LimitCpus:       limCpu * numContainers32,
-			RequestedMemory: reqMem * numContainers32,
-			LimitMemory:     limMem * numContainers32,
+			RequestedMemory: newQuantityAsBytes(int64(reqMem * numContainers32)),
+			LimitMemory:     newQuantityAsBytes(int64(limMem * numContainers32)),
 		},
 		Containers: []*ctlplaneapi.ContainerInfo{},
 	}
@@ -72,8 +87,8 @@ func createPodRequestForFuzzing(
 			Resources: &ctlplaneapi.ResourceInfo{
 				RequestedCpus:   reqCpu,
 				LimitCpus:       limCpu,
-				RequestedMemory: reqMem,
-				LimitMemory:     limMem,
+				RequestedMemory: newQuantityAsBytes(int64(reqMem)),
+				LimitMemory:     newQuantityAsBytes(int64(limMem)),
 			},
 		})
 	}
@@ -215,7 +230,7 @@ func FuzzUpdatePod(f *testing.F) {
 			return
 		}
 
-		reqUpdate := updatePodRequestFromCreate(req, numDel, numUpdate)
+		reqUpdate := updatePodRequestFromCreate(t, req, numDel, numUpdate)
 		t.Log(reqUpdate)
 		resp, err := d.UpdatePod(reqUpdate)
 
