@@ -196,7 +196,7 @@ func TestNewDaemonNoState(t *testing.T) {
 }
 
 func TestCreateDaemonWithState(t *testing.T) {
-	d, err := New("testdata/with_state/", "testdata/node_info", "testdata/with_state/daemon.state", &MockedPolicy{}, logr.Discard())
+	d, err := New("testdata/with_state/", "", "testdata/node_info", "testdata/with_state/daemon.state", &MockedPolicy{}, logr.Discard())
 	require.Nil(t, err)
 	assert.NotNil(t, d)
 
@@ -228,7 +228,7 @@ func TestCreateAndModifyPodDefaultPolity(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	m := MockedPolicy{}
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	p := createTestPod(3)
 
@@ -297,7 +297,7 @@ func TestCreatePodDefaultPolicyNoSuffcientCPUsError(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	m := MockedPolicy{}
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	p := createTestPod(3)
 
@@ -326,7 +326,7 @@ func TestDeletePodDefaultPolicy(t *testing.T) {
 	defer tearDown(t)
 	m := MockedPolicy{}
 	p := createTestPod(2)
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	meta := d.state.Pods[p.pid]
 	meta.Containers = p.containers
@@ -342,7 +342,7 @@ func TestDeletePodDefaultPolicyError(t *testing.T) {
 	defer tearDown(t)
 	m := MockedPolicy{}
 	p := createTestPod(1)
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	err = d.DeletePod(&ctlplaneapi.DeletePodRequest{PodId: p.pid})
 	expErr := DaemonError{ErrorType: PodNotFound, ErrorMessage: "Pod not found in CPU State"}
@@ -353,7 +353,7 @@ func TestDaemonCreatePodRollbacks(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	m := MockedPolicy{}
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	p := createTestPod(2)
 
@@ -384,7 +384,7 @@ func TestDeletePodContinuesDeletionAfterError(t *testing.T) {
 	defer tearDown(t)
 	m := MockedPolicy{}
 	p := createTestPod(2)
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	meta := d.state.Pods[p.pid]
 	meta.Containers = p.containers
@@ -403,7 +403,7 @@ func TestUpdatePodContinuesAfterError(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	m := MockedPolicy{}
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 	require.Nil(t, err)
 	p := createTestPod(3)
 

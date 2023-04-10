@@ -146,7 +146,7 @@ func FuzzDeletePod(f *testing.F) {
 		defer os.Remove(daemonStateFile)
 
 		m := MockedPolicy{}
-		d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+		d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 		require.Nil(t, err)
 
 		if pid != "" && podInState {
@@ -201,7 +201,7 @@ func FuzzUpdatePod(f *testing.F) {
 
 		m := MockedPolicy{}
 
-		d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+		d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 		require.Nil(t, err)
 
 		m.On("DeleteContainer", mock.Anything, &d.state).Return(nil)

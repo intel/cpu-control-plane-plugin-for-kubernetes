@@ -117,8 +117,8 @@ func TestNumaNamespaceTakeCpuWithoutMemoryPinning(t *testing.T) {
 	containerNs2 := baseContainer(2)
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs1, "0", "").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs2, "1", "").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs1, "0", "").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs2, "1", "").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(containerNs1, s))
 	assert.Nil(t, allocator.takeCpus(containerNs2, s))
@@ -139,8 +139,8 @@ func TestNumaNamespaceTakeCpu(t *testing.T) {
 	containerNs2 := baseContainer(2)
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs1, "0", "0").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs2, "1", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs1, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs2, "1", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(containerNs1, s))
 	assert.Nil(t, allocator.takeCpus(containerNs2, s))
@@ -162,9 +162,9 @@ func TestNumaNamespaceOversubscribedTakeCpu(t *testing.T) {
 	containerNs3 := baseContainer(3)
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs1, "0", "0").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs2, "2", "0").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerNs3, "1", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs1, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs2, "2", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerNs3, "1", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(containerNs1, s))
 	assert.Nil(t, allocator.takeCpus(containerNs2, s))
@@ -188,9 +188,9 @@ func TestNumaNamespaceExclusiveTakeCpu(t *testing.T) {
 	containerBurstable2.CID = "pod3"
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerGuaranteed, "0", "0").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable, "1,2,3", "0").Return(nil)
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable2, "1,2,3", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerGuaranteed, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable, "1,2,3", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable2, "1,2,3", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(containerGuaranteed, s))
 	assert.Nil(t, allocator.takeCpus(containerBurstable, s))
@@ -214,13 +214,13 @@ func TestNumaNamespaceExclusiveTakeCpuWithReallocation(t *testing.T) {
 
 	mock := allocator.ctrl.(*CgroupsMock)
 
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable, "0,1", "0").Return(nil) // 1st allocation of burstable
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable, "0,1", "0").Return(nil) // 1st allocation of burstable
 	assert.Nil(t, allocator.takeCpus(containerBurstable, s))
 	assertCpuState(t, s, &containerBurstable, "0,1")
 	addContainerToState(s, containerBurstable)
 
-	mock.On("UpdateCPUSet", s.CGroupPath, containerGuaranteed, "0", "0").Return(nil) // allocation of guaranteed
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable, "1", "0").Return(nil)  // reallocation of burstable
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerGuaranteed, "0", "0").Return(nil) // allocation of guaranteed
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable, "1", "0").Return(nil)  // reallocation of burstable
 	assert.Nil(t, allocator.takeCpus(containerGuaranteed, s))
 	mock.AssertExpectations(t)
 
@@ -241,7 +241,7 @@ func TestNumaNamespaceTakeCpuNonGuaranteed(t *testing.T) {
 	container.QS = Burstable
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0,1", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0,1", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(container, s))
 	mock.AssertExpectations(t)
@@ -261,7 +261,7 @@ func TestNumaNamespaceFreeCpu(t *testing.T) {
 	container := baseContainer(1)
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(container, s))
 	assert.Contains(t, s.Allocated, container.CID)
@@ -284,19 +284,19 @@ func TestNumaNamespaceExclusiveFreeCpu(t *testing.T) {
 	mock := allocator.ctrl.(*CgroupsMock)
 
 	// add guaranteed container for cpu 0
-	mock.On("UpdateCPUSet", s.CGroupPath, containerGuaranteed, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerGuaranteed, "0", "0").Return(nil)
 	assert.Nil(t, allocator.takeCpus(containerGuaranteed, s))
 	addContainerToState(s, containerGuaranteed)
 
 	// add burstable container for cpu 1,2,3
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable, "1,2,3", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable, "1,2,3", "0").Return(nil)
 	assert.Nil(t, allocator.takeCpus(containerBurstable, s))
 	addContainerToState(s, containerBurstable)
 
 	assert.Contains(t, s.Allocated, containerGuaranteed.CID)
 
 	// remove guaranteed container, the burstable container shall now be reassigned to cpus 0,1,2,3
-	mock.On("UpdateCPUSet", s.CGroupPath, containerBurstable, "0,1,2,3", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, containerBurstable, "0,1,2,3", "0").Return(nil)
 	assert.Nil(t, allocator.freeCpus(containerGuaranteed, s))
 
 	assert.NotContains(t, s.Allocated, containerGuaranteed.CID)
@@ -331,7 +331,7 @@ func TestNumaNamespaceTakeCpuFailsIfAllBucketsTaken(t *testing.T) {
 
 	allocator := newMockedNumaPerNamespaceAllocator(2, false)
 	cmock := allocator.ctrl.(*CgroupsMock)
-	cmock.On("UpdateCPUSet", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	cmock.On("UpdateCPUSet", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(baseContainer(1), s))
 	assert.Nil(t, allocator.takeCpus(baseContainer(2), s))
@@ -352,7 +352,7 @@ func TestNumaNamespaceClearCpu(t *testing.T) {
 	container.QS = Burstable
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0,1,2,3", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0,1,2,3", "0").Return(nil)
 
 	assert.Nil(t, allocator.clearCpus(container, s))
 	mock.AssertExpectations(t)

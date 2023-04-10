@@ -195,9 +195,11 @@ func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, sPath string, c Conta
 }
 
 func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, sPath, slice, cSet, memSet string) error {
-	outputPath := path.Join(pPath, "cpuset", slice)
-	if (sPath != "") {
+	var outputPath string
+	if sPath != "" {
 		outputPath = path.Join(pPath, "cpuset", sPath, slice)
+	} else {
+		outputPath = path.Join(pPath, "cpuset", slice)
 	}
 
 	if err := utils.ValidatePathInsideBase(outputPath, pPath); err != nil {
@@ -213,9 +215,11 @@ func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, sPath, slice, cSet, memSe
 	})
 	// if we set the memory pinning we should enable memory_migrate in cgroups v1
 	if err == nil && memSet != "" {
-		migratePath := path.Join(pPath, "cpuset", slice, "cpuset.memory_migrate")
-		if (sPath != "") {
+		var migratePath string
+		if sPath != "" {
 			migratePath = path.Join(pPath, "cpuset", sPath, slice, "cpuset.memory_migrate")
+		} else {
+			migratePath = path.Join(pPath, "cpuset", slice, "cpuset.memory_migrate")
 		}
 		
 		err = os.WriteFile(migratePath, []byte("1"), os.FileMode(0))
