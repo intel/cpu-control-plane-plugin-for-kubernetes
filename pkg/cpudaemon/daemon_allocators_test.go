@@ -16,7 +16,7 @@ type CgroupsMock struct {
 	mock.Mock
 }
 
-func (m *CgroupsMock) UpdateCPUSet(pP string, c Container, cpu string, mem string) error {
+func (m *CgroupsMock) UpdateCPUSet(pP string, sP string, c Container, cpu string, mem string) error {
 	args := m.Called(pP, c, cpu, mem)
 	return args.Error(0)
 }
@@ -26,7 +26,7 @@ func newMockedPolicy(m CgroupController) *DefaultAllocator {
 }
 
 func takeCPUs(t *testing.T, d *DefaultAllocator, ctrl *CgroupsMock, st *DaemonState, c Container, s int, e int) {
-	ctrl.On("UpdateCPUSet", st.CGroupPath, c, strconv.Itoa(s)+"-"+strconv.Itoa(e), ResourceNotSet).Return(nil)
+	ctrl.On("UpdateCPUSet", st.CGroupPath, st.CGroupSubPath, c, strconv.Itoa(s)+"-"+strconv.Itoa(e), ResourceNotSet).Return(nil)
 	// check no error
 	assert.Nil(t, d.takeCpus(c, st))
 	// check list of allocated containers
@@ -167,7 +167,7 @@ func TestDefaultAllocatorClearCPU(t *testing.T) {
 	expectedCpuSet, err := CPUSetFromString("0-127")
 	require.Nil(t, err)
 
-	mockCtrl.On("UpdateCPUSet", st.CGroupPath, c, expectedCpuSet.ToCpuString(), ResourceNotSet).Return(nil)
+	mockCtrl.On("UpdateCPUSet", st.CGroupPath, st.CGroupSubPath, c, expectedCpuSet.ToCpuString(), ResourceNotSet).Return(nil)
 	assert.Nil(t, d.clearCpus(c, st))
 
 	mockCtrl.AssertExpectations(t)

@@ -103,7 +103,7 @@ func FuzzCreatePod(f *testing.F) {
 		defer os.Remove(daemonStateFile)
 
 		m := MockedPolicy{}
-		d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &m, logr.Discard())
+		d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &m, logr.Discard())
 		require.Nil(t, err)
 
 		m.On("AssignContainer", mock.Anything, &d.state).Return(nil).Run(func(args mock.Arguments) {

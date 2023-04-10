@@ -177,7 +177,7 @@ func modifyTestPod(p PodMetaData, d int, u int) PodMetaData {
 func TestNewDaemonNoState(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
-	d, err := New("testdata/no_state", "testdata/node_info", daemonStateFile, &MockedPolicy{}, logr.Discard())
+	d, err := New("testdata/no_state", "", "testdata/node_info", daemonStateFile, &MockedPolicy{}, logr.Discard())
 	require.Nil(t, err)
 	assert.NotNil(t, d)
 	expectedState := DaemonState{

@@ -31,7 +31,7 @@ func TestNumaTakeCpuWithoutMemoryPinning(t *testing.T) {
 	container.Cpus = 2
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0,1", "").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0,1", "").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(container, s))
 
@@ -52,7 +52,7 @@ func TestNumaTakeCpu(t *testing.T) {
 	container.Cpus = 2
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0,1", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0,1", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(container, s))
 
@@ -88,7 +88,7 @@ func TestNumaFreeCpu(t *testing.T) {
 	container := baseContainer(1)
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0", "0").Return(nil)
 
 	assert.Nil(t, allocator.takeCpus(container, s))
 	assert.Contains(t, s.Allocated, container.CID)
@@ -111,7 +111,7 @@ func TestNumaClearCpu(t *testing.T) {
 	container.Cpus = 2
 
 	mock := allocator.ctrl.(*CgroupsMock)
-	mock.On("UpdateCPUSet", s.CGroupPath, container, "0,1", "0").Return(nil)
+	mock.On("UpdateCPUSet", s.CGroupPath, s.CGroupSubPath, container, "0,1", "0").Return(nil)
 
 	assert.Nil(t, allocator.clearCpus(container, s))
 

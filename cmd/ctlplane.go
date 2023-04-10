@@ -34,6 +34,7 @@ type ctlParameters struct {
 	memoryPinning   bool        // also do memory pinning
 	runtime         string      // container runtime
 	cgroupPath      string      // path to the system cgroup fs
+	cgroupSubPath	string		// subdirectory in cgroups fs
 	nodeName        string      // agent node name
 	numaPath        string      // path to the sysfs node info
 	statePath       string      // path to the state file
@@ -136,7 +137,7 @@ func runDaemon(args ctlParameters) {
 		"static",
 	)
 
-	daemon, err := cpudaemon.New(args.cgroupPath, args.numaPath, args.statePath, policy, args.logger)
+	daemon, err := cpudaemon.New(args.cgroupPath, args.cgroupSubPath, args.numaPath, args.statePath, policy, args.logger)
 	if err != nil {
 		klog.Fatal(err)
 	}
@@ -200,6 +201,7 @@ func main() {
 		"Allocator to use. Available are: default, numa, numa-namespace=NUM_NAMESPACES",
 	)
 	flag.StringVar(&args.cgroupPath, "cpath", "/sys/fs/cgroup/", "Specify Path to cgroupds")
+	flag.StringVar(&args.cgroupSubPath, "sbpath", "", "Specify subpath in cgroupfs")
 	flag.StringVar(&args.numaPath, "npath", numautils.LinuxTopologyPath, "Specify Path to sysfs node info")
 	flag.StringVar(&args.statePath, "spath", "daemon.state", "Specify path to state file")
 	flag.StringVar(&args.nodeName, "agent-host", "", "Agent node name")
