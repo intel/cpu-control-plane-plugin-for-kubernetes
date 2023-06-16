@@ -7,7 +7,7 @@ require (
 	github.com/go-logr/logr v1.2.4
 	github.com/opencontainers/runtime-spec v1.0.2
 	github.com/stretchr/testify v1.8.4
-	google.golang.org/grpc v1.55.0
+	google.golang.org/grpc v1.56.0
 	google.golang.org/protobuf v1.30.0
 	k8s.io/api v0.27.2
 	k8s.io/apimachinery v0.27.2
