@@ -47,11 +47,8 @@ spec:
                 - all
           resources:
             limits:
-              cpu: 2
-              memory: "128M"
-            requests:
-              cpu: 1
-              memory: "64M"    
+              cpu: "100m"
+              memory: "16M"
       containers:
         - name: ctlplane-daemonset
           image: IMAGE
@@ -73,11 +70,11 @@ spec:
             mountPath: /daemonstate
           resources:
             limits:
-              cpu: 4
-              memory: "512M"
-            requests:
-              cpu: 2
+              cpu: "100m"
               memory: "64M"
+            requests:
+              cpu: "100m"
+              memory: "32M"
           readinessProbe:
             grpc:
               port: 31000
@@ -111,11 +108,11 @@ spec:
                   fieldPath: spec.nodeName
           resources:
             limits:
-              cpu: 4
-              memory: "512M"
-            requests:
-              cpu: 2
+              cpu: "100m"
               memory: "64M"
+            requests:
+              cpu: "100m"
+              memory: "32M"
       volumes:
         - name: host
           hostPath:
