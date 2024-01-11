@@ -15,7 +15,7 @@ import (
 func TestNewState(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
-	s, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	s, err := newState("testdata/no_state", "", "testdata/node_info", string(daemonStateFile))
 	assert.Nil(t, err)
 	assert.NotNil(t, s)
 	assert.NotNil(t, s.Allocated)
@@ -34,7 +34,7 @@ func TestThrowLoadState(t *testing.T) {
 func TestMissingCGroup(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
-	s, err := newState("testdata/no_cgroup", "testdata/node_info", daemonStateFile)
+	s, err := newState("testdata/no_cgroup", "", "testdata/node_info", daemonStateFile)
 	assert.NotNil(t, err)
 	assert.Nil(t, s)
 	assert.IsType(t, DaemonError{}, err)

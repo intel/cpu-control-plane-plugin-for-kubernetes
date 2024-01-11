@@ -146,8 +146,8 @@ func (d *Daemon) GetState() string {
 }
 
 // New constrcuts a new daemon.
-func New(cPath, numaPath, statePath string, p Policy, logger logr.Logger) (*Daemon, error) {
-	s, err := newState(cPath, numaPath, statePath)
+func New(cPath string, cSubPath string, numaPath string, statePath string, p Policy, logger logr.Logger) (*Daemon, error) {
+	s, err := newState(cPath, cSubPath, numaPath, statePath)
 	if err != nil {
 		return nil, err
 	}

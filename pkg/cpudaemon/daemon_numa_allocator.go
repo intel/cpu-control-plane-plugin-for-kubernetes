@@ -84,6 +84,7 @@ func (d *NumaAwareAllocator) takeCpus(c Container, s *DaemonState) error {
 
 	return d.ctrl.UpdateCPUSet(
 		s.CGroupPath,
+		s.CGroupSubPath,
 		c,
 		strings.Join(cpuSetList, ","),
 		getMemoryPinningIfEnabled(d.memoryPinning, &s.Topology, cpuIds),
@@ -127,6 +128,7 @@ func (d *NumaAwareAllocator) clearCpus(c Container, s *DaemonState) error {
 
 	return d.ctrl.UpdateCPUSet(
 		s.CGroupPath,
+		s.CGroupSubPath,
 		c,
 		cpuSet.ToCpuString(),
 		getMemoryPinningIfEnabledFromCpuSet(d.memoryPinning, &s.Topology, cpuSet),

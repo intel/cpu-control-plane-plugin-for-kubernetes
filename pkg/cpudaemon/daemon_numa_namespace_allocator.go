@@ -129,7 +129,7 @@ func (d *NumaPerNamespaceAllocator) takeCpus(c Container, s *DaemonState) error 
 	}
 
 	s.Allocated[c.CID] = allocatedList
-	if err = d.ctrl.UpdateCPUSet(s.CGroupPath, c, strings.Join(cpuSetList, ","), getMemoryPinningIfEnabled(d.memoryPinning, &s.Topology, cpuIds)); err != nil {
+	if err = d.ctrl.UpdateCPUSet(s.CGroupPath, s.CGroupSubPath, c, strings.Join(cpuSetList, ","), getMemoryPinningIfEnabled(d.memoryPinning, &s.Topology, cpuIds)); err != nil {
 		return err
 	}
 
@@ -244,6 +244,7 @@ func (d *NumaPerNamespaceAllocator) clearCpus(c Container, s *DaemonState) error
 	}
 	return d.ctrl.UpdateCPUSet(
 		s.CGroupPath,
+		s.CGroupSubPath,
 		c,
 		cpuSet.ToCpuString(),
 		getMemoryPinningIfEnabledFromCpuSet(d.memoryPinning, &s.Topology, cpuSet),
@@ -295,6 +296,7 @@ func (d *NumaPerNamespaceAllocator) removeCpusFromCommonPool(s *DaemonState, nam
 		)
 		err = d.ctrl.UpdateCPUSet(
 			s.CGroupPath,
+			s.CGroupSubPath,
 			c,
 			newCPUs.ToCpuString(),
 			getMemoryPinningIfEnabledFromCpuSet(d.memoryPinning, &s.Topology, newCPUs),
@@ -334,6 +336,7 @@ func (d *NumaPerNamespaceAllocator) addCpusToCommonPool(s *DaemonState, namespac
 		)
 		err = d.ctrl.UpdateCPUSet(
 			s.CGroupPath,
+			s.CGroupSubPath,
 			c,
 			newCPUs.ToCpuString(),
 			getMemoryPinningIfEnabledFromCpuSet(d.memoryPinning, &s.Topology, newCPUs),

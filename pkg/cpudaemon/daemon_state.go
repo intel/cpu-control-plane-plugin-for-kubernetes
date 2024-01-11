@@ -21,12 +21,14 @@ type DaemonState struct {
 	Pods          map[string]PodMetadata             // Maps pod id to its metadata
 	Topology      numautils.NumaTopology             // Used with numa and numa-namespace allocators
 	CGroupPath    string                             // Path to cgroup main folder (usually /sys/fs/cgroup)
+	CGroupSubPath string							 // Path to the pods directory
 	StatePath     string                             // Path to state file where DaemonState is marshalled/unmarshalled
 }
 
-func newState(cgroupPath string, numaPath string, statePath string) (*DaemonState, error) {
+func newState(cgroupPath string, cgroupSubPath string, numaPath string, statePath string) (*DaemonState, error) {
 	s := DaemonState{
 		CGroupPath: cgroupPath,
+		CGroupSubPath: cgroupSubPath,
 		Allocated:  make(map[string][]ctlplaneapi.CPUBucket),
 		Pods:       make(map[string]PodMetadata),
 		StatePath:  statePath,
@@ -38,6 +40,9 @@ func newState(cgroupPath string, numaPath string, statePath string) (*DaemonStat
 	)
 	if cgroups.Mode() != cgroups.Unified {
 		gCgroupPath = cgroupPath + "/cpuset"
+		if cgroupSubPath != "" {
+			gCgroupPath += "/" + cgroupSubPath
+		}
 		gCpusetFilePath = "cpuset.cpus"
 	} else {
 		gCgroupPath = cgroupPath

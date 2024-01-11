@@ -40,7 +40,7 @@ func NewCgroupController(containerRuntime ContainerRuntime, cgroupDriver CGroupD
 
 // CgroupController interface to cgroup library to control cpusets.
 type CgroupController interface {
-	UpdateCPUSet(path string, c Container, cpuSet string, memSet string) error
+	UpdateCPUSet(path string, sPath string, c Container, cpuSet string, memSet string) error
 }
 
 var _ CgroupController = CgroupControllerImpl{}
@@ -133,7 +133,7 @@ func (d *DefaultAllocator) takeCpus(c Container, s *DaemonState) error {
 			} else {
 				t = strconv.Itoa(sCPU) + "-" + strconv.Itoa(eCPU)
 			}
-			return d.ctrl.UpdateCPUSet(s.CGroupPath, c, t, ResourceNotSet)
+			return d.ctrl.UpdateCPUSet(s.CGroupPath, s.CGroupSubPath, c, t, ResourceNotSet)
 		}
 	}
 	return DaemonError{
@@ -171,11 +171,11 @@ func (d *DefaultAllocator) clearCpus(c Container, s *DaemonState) error {
 		allCpus = append(allCpus, allocated...)
 	}
 	cpuSet := CPUSetFromBucketList(allCpus)
-	return d.ctrl.UpdateCPUSet(s.CGroupPath, c, cpuSet.ToCpuString(), ResourceNotSet)
+	return d.ctrl.UpdateCPUSet(s.CGroupPath, s.CGroupSubPath, c, cpuSet.ToCpuString(), ResourceNotSet)
 }
 
 // UpdateCPUSet updates the cpu set of a given child process.
-func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, c Container, cSet string, memSet string) error {
+func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, sPath string, c Container, cSet string, memSet string) error {
 	runtimeURLPrefix := [2]string{"docker://", "containerd://"}
 	if cgc.containerRuntime == Kind || cgc.containerRuntime != Kind &&
 		strings.Contains(c.CID, runtimeURLPrefix[cgc.containerRuntime]) {
@@ -185,7 +185,7 @@ func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, c Container, cSet str
 		if cgroups.Mode() == cgroups.Unified {
 			return cgc.updateCgroupsV2(pPath, slice, cSet, memSet)
 		}
-		return cgc.updateCgroupsV1(pPath, slice, cSet, memSet)
+		return cgc.updateCgroupsV1(pPath, sPath, slice, cSet, memSet)
 	}
 
 	return DaemonError{
@@ -194,8 +194,14 @@ func (cgc CgroupControllerImpl) UpdateCPUSet(pPath string, c Container, cSet str
 	}
 }
 
-func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, slice, cSet, memSet string) error {
-	outputPath := path.Join(pPath, "cpuset", slice)
+func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, sPath, slice, cSet, memSet string) error {
+	var outputPath string
+	if sPath != "" {
+		outputPath = path.Join(pPath, "cpuset", sPath, slice)
+	} else {
+		outputPath = path.Join(pPath, "cpuset", slice)
+	}
+
 	if err := utils.ValidatePathInsideBase(outputPath, pPath); err != nil {
 		return err
 	}
@@ -209,7 +215,13 @@ func (cgc CgroupControllerImpl) updateCgroupsV1(pPath, slice, cSet, memSet strin
 	})
 	// if we set the memory pinning we should enable memory_migrate in cgroups v1
 	if err == nil && memSet != "" {
-		migratePath := path.Join(pPath, "cpuset", slice, "cpuset.memory_migrate")
+		var migratePath string
+		if sPath != "" {
+			migratePath = path.Join(pPath, "cpuset", sPath, slice, "cpuset.memory_migrate")
+		} else {
+			migratePath = path.Join(pPath, "cpuset", slice, "cpuset.memory_migrate")
+		}
+		
 		err = os.WriteFile(migratePath, []byte("1"), os.FileMode(0))
 	}
 	return err

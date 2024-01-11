@@ -16,8 +16,8 @@ type CgroupsMock struct {
 	mock.Mock
 }
 
-func (m *CgroupsMock) UpdateCPUSet(pP string, c Container, cpu string, mem string) error {
-	args := m.Called(pP, c, cpu, mem)
+func (m *CgroupsMock) UpdateCPUSet(pP string, sP string, c Container, cpu string, mem string) error {
+	args := m.Called(pP, sP, c, cpu, mem)
 	return args.Error(0)
 }
 
@@ -26,7 +26,7 @@ func newMockedPolicy(m CgroupController) *DefaultAllocator {
 }
 
 func takeCPUs(t *testing.T, d *DefaultAllocator, ctrl *CgroupsMock, st *DaemonState, c Container, s int, e int) {
-	ctrl.On("UpdateCPUSet", st.CGroupPath, c, strconv.Itoa(s)+"-"+strconv.Itoa(e), ResourceNotSet).Return(nil)
+	ctrl.On("UpdateCPUSet", st.CGroupPath, st.CGroupSubPath, c, strconv.Itoa(s)+"-"+strconv.Itoa(e), ResourceNotSet).Return(nil)
 	// check no error
 	assert.Nil(t, d.takeCpus(c, st))
 	// check list of allocated containers
@@ -66,7 +66,7 @@ func TestDefaultAllocatorTakeCPU(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	mockCtrl := CgroupsMock{}
-	st, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	st, err := newState("testdata/no_state", "", "testdata/node_info", daemonStateFile)
 	assert.Nil(t, err)
 	d := newMockedPolicy(&mockCtrl)
 	c := Container{
@@ -88,7 +88,7 @@ func TestDefaultAllocatorTakeCPU(t *testing.T) {
 func TestErrorNoCPUsAvailableOnTake(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
-	s, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	s, err := newState("testdata/no_state", "", "testdata/node_info", daemonStateFile)
 	assert.Nil(t, err)
 
 	d := NewDefaultAllocator(NewCgroupController(Docker, DriverSystemd, logr.Discard()))
@@ -109,7 +109,7 @@ func TestErrorNoCPUsAvailableOnTake(t *testing.T) {
 func TestErrorWrongRuntimeConfiguration(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
-	st, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	st, err := newState("testdata/no_state", "", "testdata/node_info", daemonStateFile)
 	assert.Nil(t, err)
 	d := NewDefaultAllocator(NewCgroupController(Docker, DriverSystemd, logr.Discard()))
 	assert.NotNil(t, d)
@@ -129,7 +129,7 @@ func TestTakeAndDeleteContainer(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	mockCtrl := CgroupsMock{}
-	st, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	st, err := newState("testdata/no_state", "", "testdata/node_info", daemonStateFile)
 	assert.Nil(t, err)
 
 	d := newMockedPolicy(&mockCtrl)
@@ -155,7 +155,7 @@ func TestDefaultAllocatorClearCPU(t *testing.T) {
 	daemonStateFile, tearDown := setupTest()
 	defer tearDown(t)
 	mockCtrl := CgroupsMock{}
-	st, err := newState("testdata/no_state", "testdata/node_info", daemonStateFile)
+	st, err := newState("testdata/no_state", "", "testdata/node_info", daemonStateFile)
 	assert.Nil(t, err)
 	d := newMockedPolicy(&mockCtrl)
 	c := Container{
@@ -167,7 +167,7 @@ func TestDefaultAllocatorClearCPU(t *testing.T) {
 	expectedCpuSet, err := CPUSetFromString("0-127")
 	require.Nil(t, err)
 
-	mockCtrl.On("UpdateCPUSet", st.CGroupPath, c, expectedCpuSet.ToCpuString(), ResourceNotSet).Return(nil)
+	mockCtrl.On("UpdateCPUSet", st.CGroupPath, st.CGroupSubPath, c, expectedCpuSet.ToCpuString(), ResourceNotSet).Return(nil)
 	assert.Nil(t, d.clearCpus(c, st))
 
 	mockCtrl.AssertExpectations(t)
